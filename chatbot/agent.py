@@ -13,8 +13,7 @@ from layout import create_tabs, create_option_tabs, welcome_sidebar, login_page
 from styles import apply_styles
 from cost_estimate_widget import generate_cost_estimates
 from generate_arch_widget import generate_arch
-from generate_cdk_widget import generate_cdk
-from generate_cfn_widget import generate_cfn
+from generate_terraform_widget import generate_terraform
 from generate_doc_widget import generate_doc
 import io
 
@@ -215,8 +214,7 @@ else:
             # and force user to re-check to generate updated solution
             st.session_state.cost = False
             st.session_state.arch = False
-            st.session_state.cdk = False
-            st.session_state.cfn = False
+            st.session_state.terraform = False
             st.session_state.doc = False
 
             st.chat_message("user").markdown(prompt)
@@ -241,10 +239,8 @@ else:
                 with devgenius_option_tabs[1]:
                     generate_arch(st.session_state.messages)
                 with devgenius_option_tabs[2]:
-                    generate_cdk(st.session_state.messages)
+                    generate_terraform(st.session_state.messages)
                 with devgenius_option_tabs[3]:
-                    generate_cfn(st.session_state.messages)
-                with devgenius_option_tabs[4]:
                     generate_doc(st.session_state.messages)
                 enable_artifacts_download()
 
@@ -308,11 +304,8 @@ else:
         if 'generate_cost_estimates_called' not in st.session_state:
             st.session_state.generate_cost_estimates_called = False
 
-        if 'generate_cdk_called' not in st.session_state:
-            st.session_state.generate_cdk_called = False
-
-        if 'generate_cfn_called' not in st.session_state:
-            st.session_state.generate_cfn_called = False
+        if 'generate_terraform_called' not in st.session_state:
+            st.session_state.generate_terraform_called = False
 
         if 'generate_doc_called' not in st.session_state:
             st.session_state.generate_doc_called = False
@@ -339,16 +332,11 @@ else:
                     st.session_state.generate_arch_called = True
 
             with devgenius_option_tabs[2]:
-                if not st.session_state.generate_cdk_called:
-                    generate_cdk(st.session_state.mod_messages)
-                    st.session_state.generate_cdk_called = True
+                if not st.session_state.generate_terraform_called:
+                    generate_terraform(st.session_state.mod_messages)
+                    st.session_state.generate_terraform_called = True
 
             with devgenius_option_tabs[3]:
-                if not st.session_state.generate_cfn_called:
-                    generate_cfn(st.session_state.mod_messages)
-                    st.session_state.generate_cfn_called = True
-
-            with devgenius_option_tabs[4]:
                 if not st.session_state.generate_doc_called:
                     generate_doc(st.session_state.mod_messages)
                     st.session_state.generate_doc_called = True
@@ -359,8 +347,7 @@ else:
         # Handle new chat input
         if prompt := st.chat_input():
             st.session_state.generate_arch_called = False
-            st.session_state.generate_cdk_called = False
-            st.session_state.generate_cfn_called = False
+            st.session_state.generate_terraform_called = False
             st.session_state.generate_cost_estimates_called = False
             st.session_state.generate_doc_called = False
 
@@ -368,8 +355,7 @@ else:
             # and force user to re-check to generate updated solution
             st.session_state.cost = False
             st.session_state.arch = False
-            st.session_state.cdk = False
-            st.session_state.cfn = False
+            st.session_state.terraform = False
             st.session_state.doc = False
 
             st.session_state.mod_messages.append({"role": "user", "content": prompt})

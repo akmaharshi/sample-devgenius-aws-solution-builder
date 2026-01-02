@@ -37,8 +37,8 @@ def login_page():
     # Description section
     st.header("Description")
     st.write("""
-    DevGenius is your AI-powered companion for AWS solution architecture, designed to streamline and enhance your cloud development process. Our innovative platform empowers you to effortlessly design AWS architectures tailored to your specific requirements, ensuring that your cloud infrastructure aligns perfectly with your project goals. 
-    With DevGenius, you can seamlessly generate infrastructure as code using powerful tools like AWS CDK and AWS CloudFormation, enabling faster deployment and easier management of your cloud resources. We also provide accurate cost estimates for AWS resources, helping you optimize your budget and make informed decisions. Moreover, DevGenius adheres to AWS Well-Architected best practices, ensuring that your solutions are not only efficient and cost-effective but also secure, reliable, and operationally excellent. 
+    DevGenius is your AI-powered companion for AWS solution architecture, designed to streamline and enhance your cloud development process. Our innovative platform empowers you to effortlessly design AWS architectures tailored to your specific requirements, ensuring that your cloud infrastructure aligns perfectly with your project goals.
+    With DevGenius, you can seamlessly generate infrastructure as code using Terraform, enabling faster deployment and easier management of your cloud resources. We also provide accurate cost estimates for AWS resources, helping you optimize your budget and make informed decisions. Moreover, DevGenius adheres to AWS Well-Architected best practices, ensuring that your solutions are not only efficient and cost-effective but also secure, reliable, and operationally excellent.
 
     Whether you're a seasoned AWS professional or just starting your cloud journey, DevGenius is your go-to tool for building robust, scalable, and innovative AWS solutions.
     """)  # noqa
@@ -145,5 +145,5 @@ def create_tabs():
 
 def create_option_tabs():
     """Create and return the Streamlit tabs for the various options supported by DevGenius."""
-    tabs = st.tabs(["Cost Estimates", "Architecture diagram", "CDK code", "CloudFormation code", "Technical documentation"])  # noqa
+    tabs = st.tabs(["Cost Estimates", "Architecture diagram", "Terraform code", "Technical documentation"])  # noqa
     return tabs
