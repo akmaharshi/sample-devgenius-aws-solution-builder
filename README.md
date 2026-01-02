@@ -95,6 +95,93 @@ docker run -p 8501:8501 \
   devgenius
 ```
 
+### Local Server Mode (Without AWS Infrastructure)
+
+DevGenius can run on a local server without requiring full AWS infrastructure deployment. In this mode, the application uses local file storage and databases instead of S3 and DynamoDB, while still optionally leveraging Amazon Bedrock for AI capabilities if AWS credentials are available.
+
+#### Prerequisites for Local Mode
+
+- Docker and Docker Compose installed
+- (Optional) AWS credentials configured for Bedrock access
+- Python 3.12 or later (if running without Docker)
+
+#### Quick Start with Docker Compose
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/aws-samples/sample-devgenius-aws-solution-builder.git devgenius
+   cd devgenius
+   ```
+
+2. Create a `.env.local` file from the example:
+   ```bash
+   cp .env.local.example .env.local
+   ```
+
+3. (Optional) Edit `.env.local` to add your AWS credentials for Bedrock:
+   ```bash
+   # Edit this file to add your AWS credentials if you want to use Bedrock
+   nano .env.local
+   ```
+
+4. Start the application:
+   ```bash
+   docker-compose -f docker-compose.local.yml up
+   ```
+
+5. Access the application at `http://localhost:8501`
+
+#### Running Locally Without Docker
+
+1. Install Python dependencies:
+   ```bash
+   cd chatbot
+   pip install -r requirements.txt
+   ```
+
+2. Set environment variables:
+   ```bash
+   export LOCAL_MODE=true
+   export LOCAL_DATA_PATH=./local_data
+   export AWS_REGION=us-west-2
+   export ENABLE_AUTH=false
+   ```
+
+3. (Optional) Configure AWS credentials for Bedrock:
+   ```bash
+   export AWS_ACCESS_KEY_ID=your_key
+   export AWS_SECRET_ACCESS_KEY=your_secret
+   ```
+
+4. Run the application:
+   ```bash
+   streamlit run agent.py
+   ```
+
+#### Local Mode Features
+
+**Enabled Features:**
+- ✅ Infrastructure as Code generation (CDK, CloudFormation, Terraform)
+- ✅ Architecture diagram generation
+- ✅ Technical documentation generation
+- ✅ Local file storage for generated artifacts
+- ✅ Local JSON-based database for conversations
+- ✅ No authentication required (simplified for local use)
+- ✅ Amazon Bedrock AI (if AWS credentials provided)
+
+**Limitations:**
+- ⚠️ Bedrock Agent features require AWS credentials
+- ⚠️ No CloudFront distribution
+- ⚠️ No Cognito authentication (authentication disabled by default)
+- ⚠️ Knowledge Base features may be limited without full AWS setup
+
+**Data Storage in Local Mode:**
+All data is stored locally in the `local_data` directory:
+- `local_data/storage/` - Generated artifacts (CDK, CFN, Terraform, diagrams)
+- `local_data/conversations.json` - Conversation history
+- `local_data/sessions.json` - Session information
+- `local_data/feedback.json` - User feedback
+
 ## AWS Infrastructure Deployment
 
 DevGenius includes a CDK stack that deploys all required infrastructure:

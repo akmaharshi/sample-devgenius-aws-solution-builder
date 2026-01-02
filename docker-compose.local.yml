@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  devgenius:
+    build:
+      context: ./chatbot
+      dockerfile: Dockerfile
+    ports:
+      - "8501:8501"
+    environment:
+      # Local mode configuration
+      - LOCAL_MODE=true
+      - LOCAL_DATA_PATH=/app/local_data
+      - AWS_REGION=${AWS_REGION:-us-west-2}
+      - ENABLE_AUTH=false
+
+      # Optional: AWS credentials for Bedrock (if available)
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN}
+      - AWS_PROFILE=${AWS_PROFILE}
+
+      # Optional: Bedrock configuration
+      - BEDROCK_AGENT_ID=${BEDROCK_AGENT_ID}
+      - BEDROCK_AGENT_ALIAS_ID=${BEDROCK_AGENT_ALIAS_ID}
+      - BEDROCK_MODEL_ID=${BEDROCK_MODEL_ID:-us.anthropic.claude-3-5-sonnet-20241022-v2:0}
+    volumes:
+      - ./local_data:/app/local_data
+      - ~/.aws:/root/.aws:ro  # Mount AWS credentials (read-only, optional)
+    restart: unless-stopped

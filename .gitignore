@@ -245,3 +245,7 @@ chatbot/data
 
 ### Lambda packages
 lib/layer/python
+
+### Local mode ###
+local_data/
+.env.local
