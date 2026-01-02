@@ -4,15 +4,15 @@ DevGenius is an AI-powered application that transforms project ideas into comple
 
 ![Watch the demo video](demo/DevGenius_Demo.gif)
 
-**Conversational Solution Architecture Building:** DevGenius enables customers to design solution architectures in a conversational manner. Users can create architecture diagrams (in draw.io format) and refine them interactively. Once the design is finalized, they can generate end-to-end code automation using Terraform templates, and deploy it in their AWS account with a single click. Additionally, customers can receive cost estimates for running the architecture in production, along with detailed documentation for the solution.
+**Conversational Solution Architecture Building:** DevGenius enables customers to design solution architectures in a conversational manner. Users can create architecture diagrams (in draw.io format) and refine them interactively. Once the design is finalized, they can generate end-to-end code automation using AWS CDK, CloudFormation, or Terraform templates, and deploy it in their AWS account with a single click. Additionally, customers can receive cost estimates for running the architecture in production, along with detailed documentation for the solution.
 
-**Build Solution Architecture from Whiteboard Drawings:** For customers who already have their architecture in image form (e.g., whiteboard drawings), DevGenius allows them to upload the image. Once uploaded, DevGenius analyzes the architecture and provides a detailed explanation. Customer can then refine the design conversationally and, once finalized, generate end-to-end code automation using Terraform. Cost estimates and comprehensive documentation are also available.
+**Build Solution Architecture from Whiteboard Drawings:** For customers who already have their architecture in image form (e.g., whiteboard drawings), DevGenius allows them to upload the image. Once uploaded, DevGenius analyzes the architecture and provides a detailed explanation. Customer can then refine the design conversationally and, once finalized, generate end-to-end code automation using AWS CDK, CloudFormation, or Terraform. Cost estimates and comprehensive documentation are also available.
 
 ## Features
 
 - **Solution Architecture Generation**: Create AWS architectures based on your project requirements
 - **Architecture Diagram Creation**: Generate visual representations of your AWS solutions
-- **Infrastructure as Code**: Generate Terraform templates
+- **Infrastructure as Code**: Generate AWS CDK, CloudFormation, and Terraform templates
 - **Cost Estimation**: Get detailed cost breakdowns for all proposed AWS services
 - **Technical Documentation**: Generate comprehensive documentation for your solutions
 - **Existing Architecture Analysis**: Upload and analyze existing architecture diagrams
@@ -160,7 +160,9 @@ The CDK stack deploys:
 5. Use the option tabs to generate additional assets:
    - Cost Estimates: Get detailed pricing breakdown
    - Architecture Diagram: Visual representation of the solution
-   - Terraform Code: Infrastructure as code templates
+   - CDK Code: TypeScript infrastructure as code
+   - CloudFormation Code: YAML templates
+   - Terraform Code: HCL configuration files
    - Technical Documentation: Comprehensive solution documentation
 
 ### Analyzing Existing Architecture
@@ -190,7 +192,10 @@ Architecture information is stored as vector embeddings in Amazon OpenSearch Ser
 
 ### Infrastructure as Code Generation
 
-The application can generate Terraform (HCL) configuration files for deploying the proposed solutions.
+The application can generate infrastructure as code in multiple formats for deploying the proposed solutions:
+- **AWS CDK (TypeScript)**: Type-safe infrastructure using familiar programming constructs
+- **CloudFormation (YAML)**: Native AWS templates for direct deployment
+- **Terraform (HCL)**: Declarative configuration files for multi-cloud compatibility
 
 ## Project Structure
 
@@ -199,6 +204,8 @@ The application can generate Terraform (HCL) configuration files for deploying t
    ├── agent.py                   # Main application entry point
    ├── cost_estimate_widget.py    # Cost estimation functionality
    ├── generate_arch_widget.py    # Architecture diagram generation
+   ├── generate_cdk_widget.py     # CDK code generation
+   ├── generate_cfn_widget.py     # CloudFormation template generation
    ├── generate_terraform_widget.py # Terraform code generation
    ├── generate_doc_widget.py     # Documentation generation
    ├── layout.py                  # UI layout components
