@@ -1,0 +1,377 @@
+# AWS Service Registry
+# Adding a new service requires ONLY updating this file - NO code changes needed
+
+version: "1.0.0"
+description: "AWS Service Registry for Template-Based Terraform Generation"
+
+# Service definitions
+services:
+  # Compute Services
+  ec2:
+    name: "Amazon EC2"
+    category: "compute"
+    terraform_resource: "aws_instance"
+    terraform_module: "terraform-aws-modules/ec2-instance/aws"
+    module_version: "~> 5.0"
+    icon_name: "EC2"
+    description: "Elastic Compute Cloud - Virtual Servers"
+    default_configuration:
+      instance_type: "t3.micro"
+      ami: "auto_detect_latest_amazon_linux"
+      monitoring: true
+    parameters:
+      - name: "instance_type"
+        type: "string"
+        required: true
+        default: "t3.micro"
+        description: "EC2 instance type"
+      - name: "ami"
+        type: "string"
+        required: true
+        description: "Amazon Machine Image ID"
+      - name: "key_name"
+        type: "string"
+        required: false
+        description: "SSH key pair name"
+      - name: "user_data"
+        type: "string"
+        required: false
+        description: "User data script"
+
+  lambda:
+    name: "AWS Lambda"
+    category: "serverless"
+    terraform_resource: "aws_lambda_function"
+    terraform_module: "terraform-aws-modules/lambda/aws"
+    module_version: "~> 7.0"
+    icon_name: "Lambda"
+    description: "Serverless compute service"
+    default_configuration:
+      runtime: "python3.11"
+      timeout: 30
+      memory_size: 128
+    parameters:
+      - name: "runtime"
+        type: "string"
+        required: true
+        default: "python3.11"
+      - name: "handler"
+        type: "string"
+        required: true
+        default: "index.handler"
+      - name: "timeout"
+        type: "number"
+        required: false
+        default: 30
+      - name: "memory_size"
+        type: "number"
+        required: false
+        default: 128
+
+  ecs:
+    name: "Amazon ECS"
+    category: "container"
+    terraform_resource: "aws_ecs_cluster"
+    terraform_module: "terraform-aws-modules/ecs/aws"
+    module_version: "~> 5.0"
+    icon_name: "ECS"
+    description: "Elastic Container Service"
+    default_configuration:
+      cluster_name: "app-cluster"
+    parameters:
+      - name: "cluster_name"
+        type: "string"
+        required: true
+
+  # Storage Services
+  s3:
+    name: "Amazon S3"
+    category: "storage"
+    terraform_resource: "aws_s3_bucket"
+    terraform_module: "terraform-aws-modules/s3-bucket/aws"
+    module_version: "~> 4.0"
+    icon_name: "S3"
+    description: "Simple Storage Service"
+    default_configuration:
+      versioning_enabled: true
+      encryption_enabled: true
+    parameters:
+      - name: "bucket_name"
+        type: "string"
+        required: true
+      - name: "versioning_enabled"
+        type: "boolean"
+        required: false
+        default: true
+      - name: "encryption_enabled"
+        type: "boolean"
+        required: false
+        default: true
+
+  efs:
+    name: "Amazon EFS"
+    category: "storage"
+    terraform_resource: "aws_efs_file_system"
+    terraform_module: "terraform-aws-modules/efs/aws"
+    module_version: "~> 1.0"
+    icon_name: "EFS"
+    description: "Elastic File System"
+    default_configuration:
+      encrypted: true
+      performance_mode: "generalPurpose"
+
+  # Database Services
+  rds:
+    name: "Amazon RDS"
+    category: "database"
+    terraform_resource: "aws_db_instance"
+    terraform_module: "terraform-aws-modules/rds/aws"
+    module_version: "~> 6.0"
+    icon_name: "RDS"
+    description: "Relational Database Service"
+    default_configuration:
+      engine: "postgres"
+      engine_version: "15.4"
+      instance_class: "db.t3.micro"
+      allocated_storage: 20
+      multi_az: false
+    parameters:
+      - name: "engine"
+        type: "string"
+        required: true
+        default: "postgres"
+        allowed_values: ["postgres", "mysql", "mariadb", "oracle", "sqlserver"]
+      - name: "engine_version"
+        type: "string"
+        required: true
+      - name: "instance_class"
+        type: "string"
+        required: true
+        default: "db.t3.micro"
+      - name: "allocated_storage"
+        type: "number"
+        required: true
+        default: 20
+      - name: "multi_az"
+        type: "boolean"
+        required: false
+        default: false
+
+  dynamodb:
+    name: "Amazon DynamoDB"
+    category: "database"
+    terraform_resource: "aws_dynamodb_table"
+    terraform_module: "terraform-aws-modules/dynamodb-table/aws"
+    module_version: "~> 4.0"
+    icon_name: "DynamoDB"
+    description: "NoSQL Database Service"
+    default_configuration:
+      billing_mode: "PAY_PER_REQUEST"
+      hash_key: "id"
+    parameters:
+      - name: "table_name"
+        type: "string"
+        required: true
+      - name: "billing_mode"
+        type: "string"
+        required: false
+        default: "PAY_PER_REQUEST"
+        allowed_values: ["PROVISIONED", "PAY_PER_REQUEST"]
+      - name: "hash_key"
+        type: "string"
+        required: true
+      - name: "range_key"
+        type: "string"
+        required: false
+
+  # Networking Services
+  vpc:
+    name: "Amazon VPC"
+    category: "networking"
+    terraform_resource: "aws_vpc"
+    terraform_module: "terraform-aws-modules/vpc/aws"
+    module_version: "~> 5.0"
+    icon_name: "VPC"
+    description: "Virtual Private Cloud"
+    default_configuration:
+      cidr: "10.0.0.0/16"
+      enable_dns_hostnames: true
+      enable_dns_support: true
+    parameters:
+      - name: "cidr"
+        type: "string"
+        required: true
+        default: "10.0.0.0/16"
+      - name: "azs"
+        type: "list"
+        required: true
+      - name: "private_subnets"
+        type: "list"
+        required: true
+      - name: "public_subnets"
+        type: "list"
+        required: true
+
+  alb:
+    name: "Application Load Balancer"
+    category: "networking"
+    terraform_resource: "aws_lb"
+    terraform_module: "terraform-aws-modules/alb/aws"
+    module_version: "~> 9.0"
+    icon_name: "ELB"
+    description: "Application Load Balancer"
+    default_configuration:
+      load_balancer_type: "application"
+      internal: false
+
+  cloudfront:
+    name: "Amazon CloudFront"
+    category: "networking"
+    terraform_resource: "aws_cloudfront_distribution"
+    terraform_module: "terraform-aws-modules/cloudfront/aws"
+    module_version: "~> 3.0"
+    icon_name: "CloudFront"
+    description: "Content Delivery Network"
+
+  # Security Services
+  iam:
+    name: "AWS IAM"
+    category: "security"
+    terraform_resource: "aws_iam_role"
+    terraform_module: "terraform-aws-modules/iam/aws"
+    module_version: "~> 5.0"
+    icon_name: "IAM"
+    description: "Identity and Access Management"
+
+  kms:
+    name: "AWS KMS"
+    category: "security"
+    terraform_resource: "aws_kms_key"
+    terraform_module: null
+    icon_name: "KMS"
+    description: "Key Management Service"
+
+  secrets_manager:
+    name: "AWS Secrets Manager"
+    category: "security"
+    terraform_resource: "aws_secretsmanager_secret"
+    terraform_module: null
+    icon_name: "SecretsManager"
+    description: "Secrets Management"
+
+  # Analytics Services
+  kinesis:
+    name: "Amazon Kinesis"
+    category: "analytics"
+    terraform_resource: "aws_kinesis_stream"
+    terraform_module: null
+    icon_name: "Kinesis"
+    description: "Real-time data streaming"
+    default_configuration:
+      shard_count: 1
+      retention_period: 24
+
+  glue:
+    name: "AWS Glue"
+    category: "analytics"
+    terraform_resource: "aws_glue_catalog_database"
+    terraform_module: null
+    icon_name: "Glue"
+    description: "ETL Service"
+
+  athena:
+    name: "Amazon Athena"
+    category: "analytics"
+    terraform_resource: "aws_athena_workgroup"
+    terraform_module: null
+    icon_name: "Athena"
+    description: "Interactive query service"
+
+  # Messaging Services
+  sqs:
+    name: "Amazon SQS"
+    category: "messaging"
+    terraform_resource: "aws_sqs_queue"
+    terraform_module: "terraform-aws-modules/sqs/aws"
+    module_version: "~> 4.0"
+    icon_name: "SQS"
+    description: "Simple Queue Service"
+
+  sns:
+    name: "Amazon SNS"
+    category: "messaging"
+    terraform_resource: "aws_sns_topic"
+    terraform_module: "terraform-aws-modules/sns/aws"
+    module_version: "~> 6.0"
+    icon_name: "SNS"
+    description: "Simple Notification Service"
+
+  # ML/AI Services
+  sagemaker:
+    name: "Amazon SageMaker"
+    category: "ml_ai"
+    terraform_resource: "aws_sagemaker_notebook_instance"
+    terraform_module: null
+    icon_name: "SageMaker"
+    description: "Machine Learning Platform"
+
+# Service detection aliases (for vision AI)
+service_aliases:
+  ec2:
+    - "ec2"
+    - "virtual machine"
+    - "vm"
+    - "compute instance"
+    - "server"
+  lambda:
+    - "lambda"
+    - "function"
+    - "serverless function"
+  s3:
+    - "s3"
+    - "storage"
+    - "bucket"
+    - "object storage"
+  rds:
+    - "rds"
+    - "database"
+    - "relational database"
+    - "postgres"
+    - "mysql"
+  vpc:
+    - "vpc"
+    - "virtual private cloud"
+    - "network"
+  alb:
+    - "alb"
+    - "load balancer"
+    - "application load balancer"
+    - "elb"
+  dynamodb:
+    - "dynamodb"
+    - "nosql"
+    - "table"
+
+# Terraform provider configuration
+terraform_providers:
+  aws:
+    source: "hashicorp/aws"
+    version: "~> 5.0"
+
+# Environment-specific overrides
+environment_overrides:
+  prod:
+    rds:
+      multi_az: true
+      backup_retention_period: 7
+    ec2:
+      monitoring: true
+    s3:
+      versioning_enabled: true
+      lifecycle_rules_enabled: true
+  dev:
+    rds:
+      multi_az: false
+      backup_retention_period: 1
+    ec2:
+      monitoring: false

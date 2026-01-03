@@ -11,3 +11,9 @@ langchain-community==0.3.3
 unstructured==0.16.8
 python-pptx==1.0.2
 pyshorteners==1.0.1
+
+# New dependencies for cost-optimized IaC platform
+pydantic==2.9.2
+pyyaml==6.0.2
+jinja2==3.1.4
+checkov==3.2.257
