@@ -9,7 +9,7 @@ import base64
 from typing import Dict, List, Optional, Tuple
 from pathlib import Path
 
-from vision_ai import VisionAI
+from vision_ai_factory import VisionAIFactory
 from intent_normalizer import IntentNormalizer
 from terraform_generator import TerraformGenerator
 from terraform_validator import TerraformValidator, ValidationResult, SecurityScanResult
@@ -22,7 +22,7 @@ class IaCOrchestrator:
     Coordinates: Vision AI → Intent Normalization → Terraform Generation → Validation
 
     COST OPTIMIZATION:
-    - Bedrock used ONLY for Vision AI (diagram analysis)
+    - Vision AI: Ollama (FREE) or Bedrock ($0.03) - auto-detects best option
     - All code generation uses templates (ZERO Bedrock cost)
     - Deterministic outputs (same input → same Terraform)
     """
@@ -30,15 +30,30 @@ class IaCOrchestrator:
     def __init__(
         self,
         aws_region: str = "us-east-1",
-        output_base_dir: str = "generated_architectures"
+        output_base_dir: str = "generated_architectures",
+        vision_provider: str = "auto"
     ):
-        """Initialize orchestrator with all components"""
+        """
+        Initialize orchestrator with all components
+
+        Args:
+            aws_region: AWS region for infrastructure
+            output_base_dir: Base directory for generated Terraform
+            vision_provider: Vision AI provider ('auto', 'ollama', 'bedrock')
+                - 'auto': Auto-detect best available (Ollama → Bedrock)
+                - 'ollama': Use Ollama (FREE)
+                - 'bedrock': Use AWS Bedrock ($0.03/diagram)
+        """
 
         self.aws_region = aws_region
         self.output_base_dir = output_base_dir
+        self.vision_provider = vision_provider
 
         # Initialize components
-        self.vision_ai = VisionAI(region_name=aws_region)
+        self.vision_ai = VisionAIFactory.create(
+            provider=vision_provider,
+            region_name=aws_region
+        )
         self.intent_normalizer = IntentNormalizer()
         self.terraform_generator = TerraformGenerator()
 
@@ -242,7 +257,7 @@ class IaCOrchestrator:
 
     def cost_comparison(self, num_diagrams: int = 1) -> Dict:
         """
-        Compare costs: Old approach (LLM-based) vs New approach (Template-based)
+        Compare costs: Old approach (LLM-based) vs New approaches (Template + Bedrock/Ollama)
 
         Args:
             num_diagrams: Number of diagrams to estimate for
@@ -251,7 +266,7 @@ class IaCOrchestrator:
             Cost comparison breakdown
         """
 
-        # OLD APPROACH (Current implementation)
+        # OLD APPROACH (Original LLM-based implementation)
         # - Vision AI: ~$0.03 per diagram
         # - Agent invocation: ~$0.05 per conversation
         # - CDK generation: ~$0.10 (128K tokens @ $15/M output)
@@ -264,7 +279,7 @@ class IaCOrchestrator:
         old_approach_per_diagram = 0.53
         old_approach_total = old_approach_per_diagram * num_diagrams
 
-        # NEW APPROACH (Template-based)
+        # NEW APPROACH - BEDROCK VISION (Template-based)
         # - Vision AI: ~$0.03 per diagram (ONLY Bedrock usage)
         # - Intent normalization: $0 (pure Python)
         # - Terraform generation: $0 (templates)
@@ -272,16 +287,33 @@ class IaCOrchestrator:
         # - Security scan: $0 (Checkov)
         # Total per diagram: ~$0.03
 
-        new_approach_per_diagram = 0.03
-        new_approach_total = new_approach_per_diagram * num_diagrams
+        new_bedrock_per_diagram = 0.03
+        new_bedrock_total = new_bedrock_per_diagram * num_diagrams
 
-        # Savings
-        savings_per_diagram = old_approach_per_diagram - new_approach_per_diagram
-        savings_total = old_approach_total - new_approach_total
-        savings_percentage = (savings_per_diagram / old_approach_per_diagram) * 100
+        # NEW APPROACH - OLLAMA (Template-based + FREE Vision)
+        # - Vision AI: ~$0.00 (Ollama - runs on your infrastructure)
+        # - Intent normalization: $0 (pure Python)
+        # - Terraform generation: $0 (templates)
+        # - Validation: $0 (terraform CLI)
+        # - Security scan: $0 (Checkov)
+        # Total per diagram: ~$0.00
+
+        new_ollama_per_diagram = 0.0
+        new_ollama_total = new_ollama_per_diagram * num_diagrams
+
+        # Savings - Bedrock
+        savings_bedrock_per = old_approach_per_diagram - new_bedrock_per_diagram
+        savings_bedrock_total = old_approach_total - new_bedrock_total
+        savings_bedrock_pct = (savings_bedrock_per / old_approach_per_diagram) * 100
+
+        # Savings - Ollama
+        savings_ollama_per = old_approach_per_diagram - new_ollama_per_diagram
+        savings_ollama_total = old_approach_total - new_ollama_total
+        savings_ollama_pct = (savings_ollama_per / old_approach_per_diagram) * 100
 
         return {
             "old_approach": {
+                "name": "LLM-based generation",
                 "per_diagram_usd": round(old_approach_per_diagram, 2),
                 "total_usd": round(old_approach_total, 2),
                 "breakdown": {
@@ -294,23 +326,46 @@ class IaCOrchestrator:
                     "architecture_diagram": 0.15
                 }
             },
-            "new_approach": {
-                "per_diagram_usd": round(new_approach_per_diagram, 2),
-                "total_usd": round(new_approach_total, 2),
+            "new_approach_bedrock": {
+                "name": "Template-based + Bedrock Vision",
+                "per_diagram_usd": round(new_bedrock_per_diagram, 2),
+                "total_usd": round(new_bedrock_total, 2),
                 "breakdown": {
-                    "vision_ai": 0.03,
+                    "vision_ai_bedrock": 0.03,
                     "intent_normalization": 0.0,
                     "terraform_generation": 0.0,
                     "validation": 0.0,
                     "security_scan": 0.0
+                },
+                "savings_vs_old": {
+                    "per_diagram_usd": round(savings_bedrock_per, 2),
+                    "total_usd": round(savings_bedrock_total, 2),
+                    "percentage": round(savings_bedrock_pct, 1)
                 }
             },
-            "savings": {
-                "per_diagram_usd": round(savings_per_diagram, 2),
-                "total_usd": round(savings_total, 2),
-                "percentage": round(savings_percentage, 1)
+            "new_approach_ollama": {
+                "name": "Template-based + Ollama (FREE)",
+                "per_diagram_usd": round(new_ollama_per_diagram, 2),
+                "total_usd": round(new_ollama_total, 2),
+                "breakdown": {
+                    "vision_ai_ollama": 0.0,
+                    "intent_normalization": 0.0,
+                    "terraform_generation": 0.0,
+                    "validation": 0.0,
+                    "security_scan": 0.0
+                },
+                "infrastructure_note": "Runs on your infrastructure (local/EC2 ~$0.08/hour)",
+                "savings_vs_old": {
+                    "per_diagram_usd": round(savings_ollama_per, 2),
+                    "total_usd": round(savings_ollama_total, 2),
+                    "percentage": round(savings_ollama_pct, 1)
+                }
             },
-            "num_diagrams": num_diagrams
+            "num_diagrams": num_diagrams,
+            "recommendation": (
+                "Use Ollama for 100% cost savings. "
+                "Fall back to Bedrock only if Ollama is unavailable or you need absolute highest accuracy."
+            )
         }
 
 
@@ -319,11 +374,14 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="AI-IaC Platform - Diagram to Terraform")
-    parser.add_argument("--image", required=True, help="Path to architecture diagram image")
-    parser.add_argument("--name", required=True, help="Architecture name")
+    parser.add_argument("--image", help="Path to architecture diagram image")
+    parser.add_argument("--name", help="Architecture name")
     parser.add_argument("--env", default="dev", choices=["dev", "staging", "prod"],
                         help="Environment (default: dev)")
     parser.add_argument("--region", default="us-east-1", help="AWS region (default: us-east-1)")
+    parser.add_argument("--vision-provider", default="auto",
+                        choices=["auto", "ollama", "bedrock"],
+                        help="Vision AI provider: auto (default), ollama (FREE), bedrock ($0.03)")
     parser.add_argument("--no-validate", action="store_true", help="Skip Terraform validation")
     parser.add_argument("--no-security-scan", action="store_true", help="Skip security scanning")
     parser.add_argument("--cost-comparison", action="store_true",
@@ -331,26 +389,46 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    # Initialize orchestrator
-    orchestrator = IaCOrchestrator(aws_region=args.region)
-
     # Cost comparison
     if args.cost_comparison:
-        print("\n💰 Cost Comparison: Old vs New Approach")
-        print("=" * 60)
-        comparison = orchestrator.cost_comparison(num_diagrams=100)
-        print(f"\nOLD APPROACH (LLM-based generation):")
+        # Create temporary orchestrator for cost comparison
+        temp_orchestrator = IaCOrchestrator(aws_region=args.region, vision_provider="auto")
+
+        print("\n💰 Cost Comparison: LLM-based vs Template-based (Bedrock vs Ollama)")
+        print("=" * 80)
+        comparison = temp_orchestrator.cost_comparison(num_diagrams=100)
+
+        print(f"\n📊 OLD APPROACH ({comparison['old_approach']['name']}):")
         print(f"  Per diagram: ${comparison['old_approach']['per_diagram_usd']}")
         print(f"  100 diagrams: ${comparison['old_approach']['total_usd']}")
-        print(f"\nNEW APPROACH (Template-based generation):")
-        print(f"  Per diagram: ${comparison['new_approach']['per_diagram_usd']}")
-        print(f"  100 diagrams: ${comparison['new_approach']['total_usd']}")
-        print(f"\n💵 SAVINGS:")
-        print(f"  Per diagram: ${comparison['savings']['per_diagram_usd']}")
-        print(f"  100 diagrams: ${comparison['savings']['total_usd']}")
-        print(f"  Percentage: {comparison['savings']['percentage']}%")
-        print("=" * 60)
+
+        print(f"\n📊 NEW APPROACH - BEDROCK ({comparison['new_approach_bedrock']['name']}):")
+        print(f"  Per diagram: ${comparison['new_approach_bedrock']['per_diagram_usd']}")
+        print(f"  100 diagrams: ${comparison['new_approach_bedrock']['total_usd']}")
+        print(f"  💵 Savings: ${comparison['new_approach_bedrock']['savings_vs_old']['per_diagram_usd']} "
+              f"({comparison['new_approach_bedrock']['savings_vs_old']['percentage']}%)")
+
+        print(f"\n📊 NEW APPROACH - OLLAMA ({comparison['new_approach_ollama']['name']}):")
+        print(f"  Per diagram: ${comparison['new_approach_ollama']['per_diagram_usd']} 🎉 FREE!")
+        print(f"  100 diagrams: ${comparison['new_approach_ollama']['total_usd']}")
+        print(f"  💵 Savings: ${comparison['new_approach_ollama']['savings_vs_old']['per_diagram_usd']} "
+              f"({comparison['new_approach_ollama']['savings_vs_old']['percentage']}%)")
+        print(f"  ℹ️  {comparison['new_approach_ollama']['infrastructure_note']}")
+
+        print(f"\n💡 Recommendation:")
+        print(f"  {comparison['recommendation']}")
+        print("=" * 80)
         exit(0)
+
+    # Validate required arguments
+    if not args.image or not args.name:
+        parser.error("--image and --name are required (unless using --cost-comparison)")
+
+    # Initialize orchestrator
+    orchestrator = IaCOrchestrator(
+        aws_region=args.region,
+        vision_provider=args.vision_provider
+    )
 
     # Process diagram
     user_clarifications = {

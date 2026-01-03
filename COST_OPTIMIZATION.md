@@ -2,15 +2,28 @@
 
 ## 🎯 Overview
 
-This document describes the **cost-optimized, template-based Terraform generation** approach that reduces AWS Bedrock costs by **~94%** while delivering **production-grade, deterministic infrastructure-as-code**.
+This document describes the **cost-optimized, template-based Terraform generation** approach that reduces AWS Bedrock costs by **up to 100%** while delivering **production-grade, deterministic infrastructure-as-code**.
+
+## 🚀 NEW: 100% FREE Vision AI with Ollama
+
+We now support **Ollama + Llama 3.2 Vision** as a FREE alternative to AWS Bedrock Vision!
+
+**Quick Start:**
+```bash
+./setup-ollama.sh
+```
+
+See **[OLLAMA_SETUP.md](OLLAMA_SETUP.md)** for detailed setup instructions.
 
 ## 📊 Cost Comparison
 
-| Approach | Per Diagram | 100 Diagrams | Components Using Bedrock |
-|----------|-------------|--------------|--------------------------|
-| **Old (LLM-based)** | $0.53 | $53.00 | Vision AI, Agent, CDK Gen, CFN Gen, Cost Estimate, Docs, Arch Diagram |
-| **New (Template-based)** | $0.03 | $3.00 | **Vision AI only** |
-| **Savings** | **$0.50 (94%)** | **$50.00 (94%)** | 6 fewer Bedrock calls |
+| Approach | Per Diagram | 100 Diagrams | 10K Diagrams/Month | Annual Cost |
+|----------|-------------|--------------|-------------------|-------------|
+| **Old (LLM-based)** | $0.53 | $53.00 | $5,300/mo | $63,600/yr |
+| **New (Template + Bedrock)** | $0.03 | $3.00 | $300/mo | $3,600/yr |
+| **New (Template + Ollama)** | **$0.00** ✨ | **$0.00** | **$0/mo** | **$0/yr** |
+| **Savings (Bedrock)** | **$0.50 (94%)** | **$50 (94%)** | **$5,000 (94%)** | **$60,000 (94%)** |
+| **Savings (Ollama)** | **$0.53 (100%)** | **$53 (100%)** | **$5,300 (100%)** | **$63,600 (100%)** |
 
 ### Old Approach Cost Breakdown
 ```
