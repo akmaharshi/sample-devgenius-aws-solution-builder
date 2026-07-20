@@ -1,0 +1,367 @@
+# Service Resources for {{ architecture.architecture_name }}
+
+{% for service in architecture.services %}
+{% set registry = service_registry.services.get(service.service_type, {}) %}
+{% if registry %}
+# {{ service.name }} ({{ service.service_type }})
+{% if registry.terraform_module %}
+module "{{ service.id | replace('-', '_') }}" {
+  source  = "{{ registry.terraform_module }}"
+  version = "{{ registry.module_version }}"
+
+{% if service.service_type == 'ec2' %}
+  # EC2 Instance Configuration
+  name                   = "{{ service.name }}"
+  ami                    = {{ service.configuration.get('ami', 'data.aws_ami.amazon_linux_2023.id') }}
+  instance_type          = "{{ service.configuration.get('instance_type', registry.default_configuration.instance_type) }}"
+  subnet_id              = {{ 'module.vpc.public_subnet_ids[0]' if service.network_exposure.value == 'public' else 'module.vpc.private_subnet_ids[0]' }}
+  vpc_security_group_ids = [aws_security_group.{{ service.id | replace('-', '_') }}.id]
+
+{% if service.configuration.get('key_name') %}
+  key_name               = "{{ service.configuration.key_name }}"
+{% endif %}
+
+  enable_monitoring = {{ 'true' if architecture.environment.value == 'prod' else 'false' }}
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "{{ service.name }}"
+      ServiceId = "{{ service.id }}"
+    }
+  )
+
+{% elif service.service_type == 'lambda' %}
+  # Lambda Function Configuration
+  function_name = "{{ service.name }}"
+  description   = "{{ service.description or 'Lambda function' }}"
+  handler       = "{{ service.configuration.get('handler', registry.default_configuration.handler) }}"
+  runtime       = "{{ service.configuration.get('runtime', registry.default_configuration.runtime) }}"
+  timeout       = {{ service.configuration.get('timeout', registry.default_configuration.timeout) }}
+  memory_size   = {{ service.configuration.get('memory_size', registry.default_configuration.memory_size) }}
+
+  source_path = "{{ service.configuration.get('source_path', './lambda/' + service.id) }}"
+
+  vpc_subnet_ids         = {{ 'module.vpc.private_subnet_ids' if service.network_exposure.value == 'private' else '[]' }}
+  vpc_security_group_ids = {{ '[aws_security_group.' + service.id | replace('-', '_') + '.id]' if service.network_exposure.value == 'private' else '[]' }}
+
+  environment_variables = {{ service.configuration.get('environment_variables', {}) | tojson }}
+
+{% if architecture.security.enable_logging %}
+  cloudwatch_logs_retention_in_days = {{ 7 if architecture.environment.value == 'prod' else 1 }}
+{% endif %}
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "{{ service.name }}"
+      ServiceId = "{{ service.id }}"
+    }
+  )
+
+{% elif service.service_type == 's3' %}
+  # S3 Bucket Configuration
+  bucket = "{{ architecture.architecture_name | lower | replace('_', '-') }}-{{ service.id }}-${data.aws_caller_identity.current.account_id}"
+
+  # Versioning
+  versioning = {
+    enabled = {{ service.configuration.get('versioning_enabled', registry.default_configuration.versioning_enabled) | lower }}
+  }
+
+  # Server-side encryption
+  server_side_encryption_configuration = {
+    rule = {
+      apply_server_side_encryption_by_default = {
+        sse_algorithm = "{{ service.configuration.get('encryption_algorithm', 'AES256') }}"
+      }
+      bucket_key_enabled = {{ architecture.security.enable_encryption_at_rest | lower }}
+    }
+  }
+
+  # Block public access
+  block_public_acls       = {{ 'false' if service.network_exposure.value == 'public' else 'true' }}
+  block_public_policy     = {{ 'false' if service.network_exposure.value == 'public' else 'true' }}
+  ignore_public_acls      = {{ 'false' if service.network_exposure.value == 'public' else 'true' }}
+  restrict_public_buckets = {{ 'false' if service.network_exposure.value == 'public' else 'true' }}
+
+{% if architecture.security.enable_logging %}
+  # Logging
+  logging = {
+    target_bucket = module.logging_bucket.s3_bucket_id
+    target_prefix = "s3-logs/{{ service.id }}/"
+  }
+{% endif %}
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "{{ service.name }}"
+      ServiceId = "{{ service.id }}"
+    }
+  )
+
+{% elif service.service_type == 'rds' %}
+  # RDS Database Configuration
+  identifier = "{{ service.id | replace('_', '-') }}"
+
+  engine               = "{{ service.configuration.get('engine', registry.default_configuration.engine) }}"
+  engine_version       = "{{ service.configuration.get('engine_version', registry.default_configuration.engine_version) }}"
+  family               = "{{ service.configuration.get('engine', 'postgres') }}{{ service.configuration.get('engine_version', '15').split('.')[0] }}"
+  major_engine_version = "{{ service.configuration.get('engine_version', '15.4').split('.')[0] }}"
+  instance_class       = "{{ service.configuration.get('instance_class', registry.default_configuration.instance_class) }}"
+
+  allocated_storage     = {{ service.configuration.get('allocated_storage', registry.default_configuration.allocated_storage) }}
+  max_allocated_storage = {{ service.configuration.get('allocated_storage', 100) * 2 }}
+
+  db_name  = "{{ service.configuration.get('database_name', service.id | replace('-', '_')) }}"
+  username = "{{ service.configuration.get('username', 'admin') }}"
+  port     = {{ service.configuration.get('port', 5432) }}
+
+  # Multi-AZ for HA
+  multi_az = {{ 'true' if service.high_availability.value in ['multi_az', 'multi_region'] else 'false' }}
+
+  # Network
+  db_subnet_group_name   = module.vpc.database_subnet_group_name
+  vpc_security_group_ids = [aws_security_group.{{ service.id | replace('-', '_') }}.id]
+
+  # Backup
+  backup_retention_period = {{ 7 if architecture.environment.value == 'prod' else 1 }}
+  backup_window           = "03:00-04:00"
+  maintenance_window      = "Mon:04:00-Mon:05:00"
+
+  # Enhanced monitoring
+  enabled_cloudwatch_logs_exports = {{ '["postgresql", "upgrade"]' if architecture.security.enable_monitoring else '[]' }}
+  create_cloudwatch_log_group     = {{ architecture.security.enable_monitoring | lower }}
+  monitoring_interval             = {{ 60 if architecture.environment.value == 'prod' else 0 }}
+  create_monitoring_role          = {{ architecture.environment.value == 'prod' | lower }}
+
+  # Encryption
+  storage_encrypted = {{ architecture.security.enable_encryption_at_rest | lower }}
+
+  # Deletion protection
+  deletion_protection = {{ 'true' if architecture.environment.value == 'prod' else 'false' }}
+  skip_final_snapshot = {{ 'false' if architecture.environment.value == 'prod' else 'true' }}
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "{{ service.name }}"
+      ServiceId = "{{ service.id }}"
+    }
+  )
+
+{% elif service.service_type == 'dynamodb' %}
+  # DynamoDB Table Configuration
+  name = "{{ service.id | replace('-', '_') }}"
+
+  hash_key  = "{{ service.configuration.get('hash_key', 'id') }}"
+{% if service.configuration.get('range_key') %}
+  range_key = "{{ service.configuration.range_key }}"
+{% endif %}
+
+  billing_mode = "{{ service.configuration.get('billing_mode', registry.default_configuration.billing_mode) }}"
+
+  attributes = [
+    {
+      name = "{{ service.configuration.get('hash_key', 'id') }}"
+      type = "S"
+    }
+{% if service.configuration.get('range_key') %}
+    ,{
+      name = "{{ service.configuration.range_key }}"
+      type = "S"
+    }
+{% endif %}
+  ]
+
+  # Encryption
+  server_side_encryption_enabled = {{ architecture.security.enable_encryption_at_rest | lower }}
+
+  # Point-in-time recovery
+  point_in_time_recovery_enabled = {{ 'true' if architecture.environment.value == 'prod' else 'false' }}
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "{{ service.name }}"
+      ServiceId = "{{ service.id }}"
+    }
+  )
+
+{% elif service.service_type == 'alb' %}
+  # Application Load Balancer Configuration
+  name = "{{ service.id | replace('_', '-') }}"
+
+  load_balancer_type = "application"
+  internal           = {{ 'false' if service.network_exposure.value == 'public' else 'true' }}
+
+  vpc_id  = module.vpc.vpc_id
+  subnets = {{ 'module.vpc.public_subnet_ids' if service.network_exposure.value == 'public' else 'module.vpc.private_subnet_ids' }}
+
+  security_groups = [aws_security_group.{{ service.id | replace('-', '_') }}.id]
+
+  # Access logs
+{% if architecture.security.enable_logging %}
+  access_logs = {
+    bucket  = module.logging_bucket.s3_bucket_id
+    prefix  = "alb-logs/{{ service.id }}"
+    enabled = true
+  }
+{% endif %}
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "{{ service.name }}"
+      ServiceId = "{{ service.id }}"
+    }
+  )
+
+{% elif service.service_type == 'sqs' %}
+  # SQS Queue Configuration
+  name = "{{ service.id }}"
+
+  visibility_timeout_seconds = {{ service.configuration.get('visibility_timeout', 30) }}
+  message_retention_seconds  = {{ service.configuration.get('message_retention_seconds', 345600) }}
+  max_message_size           = {{ service.configuration.get('max_message_size', 262144) }}
+  delay_seconds              = {{ service.configuration.get('delay_seconds', 0) }}
+  receive_wait_time_seconds  = {{ service.configuration.get('receive_wait_time_seconds', 0) }}
+
+  # Encryption
+  sqs_managed_sse_enabled = {{ architecture.security.enable_encryption_at_rest | lower }}
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "{{ service.name }}"
+      ServiceId = "{{ service.id }}"
+    }
+  )
+
+{% elif service.service_type == 'sns' %}
+  # SNS Topic Configuration
+  name = "{{ service.id }}"
+
+  # Encryption
+  kms_master_key_id = {{ 'aws_kms_key.sns.id' if architecture.security.enable_encryption_at_rest else 'null' }}
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "{{ service.name }}"
+      ServiceId = "{{ service.id }}"
+    }
+  )
+
+{% else %}
+  # Generic configuration for {{ service.service_type }}
+  # Add service-specific parameters here
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "{{ service.name }}"
+      ServiceId = "{{ service.id }}"
+    }
+  )
+{% endif %}
+}
+
+{% if service.service_type in ['ec2', 'lambda', 'rds', 'alb'] %}
+# Security Group for {{ service.name }}
+resource "aws_security_group" "{{ service.id | replace('-', '_') }}" {
+  name_prefix = "{{ service.id }}-"
+  description = "Security group for {{ service.name }}"
+  vpc_id      = module.vpc.vpc_id
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow all outbound traffic"
+  }
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "{{ service.id }}-sg"
+    }
+  )
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+{% endif %}
+
+{% else %}
+# Service {{ service.id }} ({{ service.service_type }}) - No terraform module defined in registry
+# Manual resource definition required
+{% endif %}
+{% endfor %}
+
+# Data source for Amazon Linux 2023 AMI
+data "aws_ami" "amazon_linux_2023" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["al2023-ami-*-x86_64"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+}
+
+{% if architecture.security.enable_logging %}
+# Logging bucket for access logs
+module "logging_bucket" {
+  source  = "terraform-aws-modules/s3-bucket/aws"
+  version = "~> 4.0"
+
+  bucket = "${local.architecture_name}-logging-${data.aws_caller_identity.current.account_id}"
+
+  # Block all public access
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+
+  # Versioning
+  versioning = {
+    enabled = true
+  }
+
+  # Lifecycle rules
+  lifecycle_rule = [
+    {
+      id      = "log-expiration"
+      enabled = true
+
+      expiration = {
+        days = {{ 30 if architecture.environment.value == 'prod' else 7 }}
+      }
+    }
+  ]
+
+  # Encryption
+  server_side_encryption_configuration = {
+    rule = {
+      apply_server_side_encryption_by_default = {
+        sse_algorithm = "AES256"
+      }
+    }
+  }
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${local.architecture_name}-logging"
+    }
+  )
+}
+{% endif %}

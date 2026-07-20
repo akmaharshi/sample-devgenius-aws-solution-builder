@@ -1,0 +1,136 @@
+# Outputs for {{ architecture.architecture_name }}
+
+# VPC Outputs
+output "vpc_id" {
+  description = "VPC ID"
+  value       = module.vpc.vpc_id
+}
+
+output "vpc_cidr_block" {
+  description = "VPC CIDR block"
+  value       = module.vpc.vpc_cidr_block
+}
+
+output "private_subnet_ids" {
+  description = "Private subnet IDs"
+  value       = module.vpc.private_subnet_ids
+}
+
+output "public_subnet_ids" {
+  description = "Public subnet IDs"
+  value       = module.vpc.public_subnet_ids
+}
+
+{% if architecture.get_services_by_category('database') | length > 0 %}
+output "database_subnet_ids" {
+  description = "Database subnet IDs"
+  value       = module.vpc.database_subnet_ids
+}
+{% endif %}
+
+# Service Outputs
+{% for service in architecture.services %}
+{% if service.service_type == 'ec2' %}
+output "{{ service.id }}_instance_id" {
+  description = "{{ service.name }} instance ID"
+  value       = module.{{ service.id | replace('-', '_') }}.id
+}
+
+output "{{ service.id }}_private_ip" {
+  description = "{{ service.name }} private IP"
+  value       = module.{{ service.id | replace('-', '_') }}.private_ip
+}
+
+{% if service.network_exposure.value == 'public' %}
+output "{{ service.id }}_public_ip" {
+  description = "{{ service.name }} public IP"
+  value       = module.{{ service.id | replace('-', '_') }}.public_ip
+}
+{% endif %}
+
+{% elif service.service_type == 'lambda' %}
+output "{{ service.id }}_function_arn" {
+  description = "{{ service.name }} function ARN"
+  value       = module.{{ service.id | replace('-', '_') }}.lambda_function_arn
+}
+
+output "{{ service.id }}_function_name" {
+  description = "{{ service.name }} function name"
+  value       = module.{{ service.id | replace('-', '_') }}.lambda_function_name
+}
+
+{% elif service.service_type == 's3' %}
+output "{{ service.id }}_bucket_id" {
+  description = "{{ service.name }} bucket ID"
+  value       = module.{{ service.id | replace('-', '_') }}.s3_bucket_id
+}
+
+output "{{ service.id }}_bucket_arn" {
+  description = "{{ service.name }} bucket ARN"
+  value       = module.{{ service.id | replace('-', '_') }}.s3_bucket_arn
+}
+
+{% elif service.service_type == 'rds' %}
+output "{{ service.id }}_endpoint" {
+  description = "{{ service.name }} endpoint"
+  value       = module.{{ service.id | replace('-', '_') }}.db_instance_endpoint
+  sensitive   = true
+}
+
+output "{{ service.id }}_database_name" {
+  description = "{{ service.name }} database name"
+  value       = module.{{ service.id | replace('-', '_') }}.db_instance_name
+}
+
+{% elif service.service_type == 'dynamodb' %}
+output "{{ service.id }}_table_name" {
+  description = "{{ service.name }} table name"
+  value       = module.{{ service.id | replace('-', '_') }}.dynamodb_table_id
+}
+
+output "{{ service.id }}_table_arn" {
+  description = "{{ service.name }} table ARN"
+  value       = module.{{ service.id | replace('-', '_') }}.dynamodb_table_arn
+}
+
+{% elif service.service_type == 'alb' %}
+output "{{ service.id }}_dns_name" {
+  description = "{{ service.name }} DNS name"
+  value       = module.{{ service.id | replace('-', '_') }}.lb_dns_name
+}
+
+output "{{ service.id }}_arn" {
+  description = "{{ service.name }} ARN"
+  value       = module.{{ service.id | replace('-', '_') }}.lb_arn
+}
+
+{% elif service.service_type == 'sqs' %}
+output "{{ service.id }}_queue_url" {
+  description = "{{ service.name }} queue URL"
+  value       = module.{{ service.id | replace('-', '_') }}.queue_url
+}
+
+output "{{ service.id }}_queue_arn" {
+  description = "{{ service.name }} queue ARN"
+  value       = module.{{ service.id | replace('-', '_') }}.queue_arn
+}
+
+{% elif service.service_type == 'sns' %}
+output "{{ service.id }}_topic_arn" {
+  description = "{{ service.name }} topic ARN"
+  value       = module.{{ service.id | replace('-', '_') }}.topic_arn
+}
+{% endif %}
+{% endfor %}
+
+# Architecture metadata
+output "architecture_info" {
+  description = "Architecture metadata"
+  value = {
+    name        = local.architecture_name
+    environment = local.environment
+    region      = local.aws_region
+    version     = "{{ architecture.version }}"
+    generated_by = "DevGenius AI-IaC Platform"
+  }
+}

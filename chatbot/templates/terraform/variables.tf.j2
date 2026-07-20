@@ -1,0 +1,66 @@
+# Variables for {{ architecture.architecture_name }}
+
+variable "aws_region" {
+  description = "AWS region for infrastructure deployment"
+  type        = string
+  default     = "{{ architecture.aws_region }}"
+}
+
+variable "environment" {
+  description = "Environment name"
+  type        = string
+  default     = "{{ architecture.environment.value }}"
+}
+
+variable "architecture_name" {
+  description = "Architecture name"
+  type        = string
+  default     = "{{ architecture.architecture_name }}"
+}
+
+{% if architecture.network %}
+# Network configuration variables
+variable "vpc_cidr" {
+  description = "CIDR block for VPC"
+  type        = string
+  default     = "{{ architecture.network.vpc_cidr }}"
+}
+
+variable "availability_zones_count" {
+  description = "Number of availability zones"
+  type        = number
+  default     = {{ architecture.network.availability_zones }}
+}
+
+variable "enable_nat_gateway" {
+  description = "Enable NAT Gateway for private subnets"
+  type        = bool
+  default     = {{ architecture.network.enable_nat_gateway | lower }}
+}
+
+variable "enable_vpn_gateway" {
+  description = "Enable VPN Gateway"
+  type        = bool
+  default     = {{ architecture.network.enable_vpn | lower }}
+}
+{% endif %}
+
+{% if architecture.cost.budget_limit %}
+# Cost management variables
+variable "monthly_budget_limit" {
+  description = "Monthly budget limit in USD"
+  type        = number
+  default     = {{ architecture.cost.budget_limit }}
+}
+{% endif %}
+
+# Additional tags
+variable "additional_tags" {
+  description = "Additional tags to apply to all resources"
+  type        = map(string)
+  default     = {
+{% for key, value in architecture.tags.items() %}
+    "{{ key }}" = "{{ value }}"
+{% endfor %}
+  }
+}

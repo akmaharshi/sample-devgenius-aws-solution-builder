@@ -1,0 +1,86 @@
+# Docker Compose for DevGenius with Ollama (100% FREE Vision AI)
+#
+# This setup runs:
+# 1. Ollama service (for FREE vision AI)
+# 2. DevGenius Streamlit app (optional - if you want to run locally)
+#
+# Usage:
+#   docker-compose -f docker-compose.ollama.yml up -d
+#
+# Cost: $0 for vision AI (vs $0.03/diagram with Bedrock)
+
+version: '3.8'
+
+services:
+  # Ollama service - Provides FREE vision AI
+  ollama:
+    image: ollama/ollama:latest
+    container_name: devgenius-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_KEEP_ALIVE=24h
+      - OLLAMA_HOST=0.0.0.0
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    # For GPU support (optional - much faster):
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  # Ollama model pull - Downloads Llama 3.2 Vision on first run
+  ollama-pull:
+    image: ollama/ollama:latest
+    container_name: devgenius-ollama-pull
+    depends_on:
+      - ollama
+    command: pull llama3.2-vision
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: "no"
+
+  # DevGenius Chatbot (optional - for local development)
+  # Uncomment if you want to run the Streamlit app locally
+  # devgenius-app:
+  #   build:
+  #     context: ./chatbot
+  #     dockerfile: Dockerfile
+  #   container_name: devgenius-app
+  #   ports:
+  #     - "8501:8501"
+  #   environment:
+  #     - VISION_PROVIDER=ollama
+  #     - OLLAMA_HOST=http://ollama:11434
+  #     - AWS_REGION=us-east-1
+  #     # Add your AWS credentials if needed
+  #     # - AWS_ACCESS_KEY_ID=your_key
+  #     # - AWS_SECRET_ACCESS_KEY=your_secret
+  #   depends_on:
+  #     - ollama
+  #     - ollama-pull
+  #   restart: unless-stopped
+  #   volumes:
+  #     - ./chatbot:/app
+  #     - generated_terraform:/app/generated_architectures
+
+volumes:
+  ollama_data:
+    driver: local
+  generated_terraform:
+    driver: local
+
+# Networks (optional)
+networks:
+  default:
+    name: devgenius-network
